@@ -1,0 +1,27 @@
+# ROS 2 / colcon
+/build/
+/install/
+/log/
+/.colcon_install_cache/
+/.colcon/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Editors
+.vscode/
+.idea/
+
+# Virtuele omgevingen en env-files
+.venv/
+env/
+*.env
+
+# OS/overigen
+.DS_Store
+*.swp
+*~

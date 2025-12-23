@@ -1,0 +1,16 @@
+# Placeholder parameter file for reactive navigation
+navigation_node:
+  ros__parameters:
+    linear_speed: 0.1
+    angular_speed: 0.5
+    arrival_threshold: 0.15
+
+obstacle_avoidance_node:
+  ros__parameters:
+    check_rate: 2.0
+    proximity_threshold: 500
+
+behavior_manager:
+  ros__parameters:
+    update_rate: 3.0
+

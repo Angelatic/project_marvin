@@ -1,0 +1,159 @@
+// index.js
+const express = require("express");
+const http = require("http");
+const { WebSocketServer } = require("ws");
+const mqtt = require("mqtt");
+
+const PORT = process.env.PORT || 8080;
+
+// === MQTT config via env vars ===
+const MQTT_URL    = process.env.MQTT_URL    || "mqtt://127.0.0.1:1883";
+const MQTT_TOPIC  = process.env.MQTT_TOPIC  || "marvin/nav/start";
+const MQTT_QOS    = Number(process.env.MQTT_QOS || 0);   // 0,1,2
+const MQTT_RETAIN = (process.env.MQTT_RETAIN || "false") === "true";
+
+// 👇 optioneel: zet op "true" om álle MQTT topics te loggen
+const MQTT_TAP_ALL = (process.env.MQTT_TAP_ALL || "false") === "true";
+
+// === MQTT client ===
+const mclient = mqtt.connect(MQTT_URL);
+mclient.on("connect", () => {
+  console.log(`[${new Date().toISOString()}] MQTT connected → ${MQTT_URL}`);
+
+  // NEW: optionele wildcard-tap voor alle topics
+  if (MQTT_TAP_ALL) {
+    mclient.subscribe("#", { qos: 0 }, (err) => {
+      if (err) {
+        console.error(`[${new Date().toISOString()}] MQTT tap subscribe error:`, err.message);
+      } else {
+        console.log(`[${new Date().toISOString()}] MQTT tap active → subscribed to "#"`);
+      }
+    });
+  }
+});
+
+mclient.on("message", (topic, payload) => {
+  if (!MQTT_TAP_ALL) return;
+  const ts = new Date().toISOString();
+  let parsed = null;
+  const text = payload?.toString("utf8") ?? "";
+  try { parsed = JSON.parse(text); } catch {}
+  console.log(`[${ts}] MQTT TAP ${topic} →`, parsed ?? text);
+});
+
+mclient.on("error", (err) => {
+  console.error(`[${new Date().toISOString()}] MQTT error:`, err.message);
+});
+
+const app = express();
+
+// body parsers
+app.use(express.json({ limit: "1mb" }));
+app.use(express.text({ type: "text/*", limit: "1mb" }));
+
+// Health
+app.get("/health", (req, res) => {
+  const up = mclient.connected ? "up" : "degraded";
+  res.json({ status: "up", mqtt: up });
+});
+
+// HTTP ingest (optioneel, handig voor debug)
+app.post("/ingest", express.raw({ type: "*/*", limit: "2mb" }), (req, res) => {
+  const ts = new Date().toISOString();
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const bodyStr = req.body?.toString("utf8") || "";
+  try {
+    const asJson = JSON.parse(bodyStr || "null");
+    console.log(`[${ts}] HTTP JSON from ${ip}:`, asJson);
+    return res.json({ status: "ok", seenType: "json" });
+  } catch {
+    console.log(`[${ts}] HTTP TEXT from ${ip}:`, bodyStr);
+    return res.json({ status: "ok", seenType: "text" });
+  }
+});
+
+// === NIEUW: start_nav → publish naar MQTT ===
+app.post("/start_nav", (req, res) => {
+  const ts = new Date().toISOString();
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+  const payload = {
+    goal: req.body?.goal ?? null,
+    meta: req.body?.meta ?? {},
+    ts,
+  };
+
+  const msg = JSON.stringify(payload);
+  mclient.publish(
+    MQTT_TOPIC,
+    msg,
+    { qos: MQTT_QOS, retain: MQTT_RETAIN },
+    (err) => {
+      if (err) {
+        console.error(`[${ts}] MQTT publish error → topic=${MQTT_TOPIC}:`, err.message);
+        return res.status(500).json({ status: "error", error: "mqtt_publish_failed" });
+      }
+      console.log(
+        `[${ts}] /start_nav from ${ip} → published to ${MQTT_TOPIC} (qos=${MQTT_QOS}, retain=${MQTT_RETAIN}) : ${msg}`
+      );
+      res.json({ status: "ok", topic: MQTT_TOPIC });
+    }
+  );
+});
+
+// === NIEUW: simpele test-route ===
+app.all("/test", (req, res) => {
+  const ts = new Date().toISOString();
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  console.log(`[${ts}] /test hit from ${ip} → method=${req.method}`);
+  if (req.method !== "GET") {
+    console.log(`[${ts}] /test body:`, req.body);
+  }
+  res.json({ status: "ok", message: "test route received something" });
+});
+
+// === NIEUW: catch-all logger route (luistert naar alles) ===
+// plaats deze NA al je specifieke routes
+app.all("/", (req, res) => {
+  const ts = new Date().toISOString();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  let bodyStr = '';
+  if (req.body !== undefined) {
+    if (Buffer.isBuffer(req.body)) bodyStr = req.body.toString('utf8');
+    else if (typeof req.body === 'object') bodyStr = JSON.stringify(req.body);
+    else bodyStr = String(req.body);
+  }
+
+  console.log(`[${ts}] CATCH-ALL ${req.method} ${req.originalUrl} from ${ip}`);
+  if (bodyStr) console.log(`[${ts}] Body:`, bodyStr);
+
+  res.status(200).json({ status: 'ok', seen: req.originalUrl, method: req.method });
+});
+
+// HTTP + WS op dezelfde server
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: "/ws" });
+
+wss.on("connection", (ws, req) => {
+  const ts = new Date().toISOString();
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  console.log(`[${ts}] WS connected from ${ip}`);
+  ws.send("connected");
+
+  ws.on("message", (data) => {
+    const ts2 = new Date().toISOString();
+    console.log(`[${ts2}] WS from ${ip}: ${data}`);
+    ws.send(`echo: ${data}`);
+  });
+
+  ws.on("close", () => {
+    const ts3 = new Date().toISOString();
+    console.log(`[${ts3}] WS closed from ${ip}`);
+  });
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`[${new Date().toISOString()}] Gateway listening on :${PORT}`);
+  console.log(`[${new Date().toISOString()}] Will publish to ${MQTT_URL} topic "${MQTT_TOPIC}"`);
+});

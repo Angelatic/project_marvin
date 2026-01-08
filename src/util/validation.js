@@ -41,6 +41,15 @@ function validateFloorplanJson(json) {
   if (!isNonEmptyString(json.name)) return "name is required";
   if (!isNonEmptyString(json.version)) return "version is required";
   if (!isNonEmptyString(json.sourceType)) return "sourceType is required";
+
+  const sourceType = String(json.sourceType).toUpperCase();
+
+  if (sourceType === "JSON") {
+    const fp = json.floorplanJson ?? json.floorplan;
+    if (!fp || typeof fp !== "object") return "floorplanJson (object) is required for sourceType=JSON";
+  }
+
+  // Voor PGM is floorplanJson niet nodig, want robot gebruikt lokale PGM/YAML
   return null;
 }
 

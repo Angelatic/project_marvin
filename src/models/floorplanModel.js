@@ -1,11 +1,32 @@
 async function insertOrUpdate(client, fp) {
+  const floorplanJson = fp.floorplanJson ?? fp.floorplan ?? null;
+
+  // usePGM afleiden:
+  // - als sourceType PGM is dan usePGM=true
+  // - als sourceType JSON is dan usePGM=false
+  // - expliciet meegegeven usePGM wint
+  const sourceType = String(fp.sourceType || "").toUpperCase();
+  const usePgm =
+    (fp.usePGM !== undefined && fp.usePGM !== null)
+      ? !!fp.usePGM
+      : (sourceType === "JSON" ? false : true);
+
   const res = await client.query(
     `INSERT INTO floorplan
-     (name, version, sourcetype, jsonpath, pgmpath, yamlpath, createdat, updatedat)
-     VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())
+     (name, version, sourcetype, floorplanjson, usepgm, pgmpath, yamlpath, createdat, updatedat)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
      RETURNING *`,
-    [fp.name, fp.version, fp.sourceType, fp.jsonPath || null, fp.pgmPath || null, fp.yamlPath || null]
+    [
+      fp.name,
+      fp.version,
+      fp.sourceType,
+      floorplanJson,      // pg driver kan JS object -> JSONB
+      usePgm,
+      fp.pgmPath || null,
+      fp.yamlPath || null
+    ]
   );
+
   return res.rows[0];
 }
 

@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
+const { publishFloorplanUpdate } = require("../mqtt/floorplanPublisher");
+
 const floorplanService = require("../core/floorplanService");
 const { validateFloorplanJson } = require("../util/validation");
 
@@ -26,11 +28,25 @@ router.post("/use-default", async (req, res) => {
   try {
     const fp = await floorplanService.setDefault(Number(floorplanId));
     if (!fp) return res.status(404).json({ error: "Floorplan not found" });
+
+    // Publish update map naar robot
+    const sourceType = String(fp.sourcetype || "").toUpperCase();
+    const usePGM = (fp.usepgm !== undefined && fp.usepgm !== null)
+      ? !!fp.usepgm
+      : (sourceType === "JSON" ? false : true);
+
+    const payload = usePGM
+      ? { usePGM: true, floorplan: null }
+      : { usePGM: false, floorplan: fp.floorplanjson || null };
+
+    publishFloorplanUpdate(payload);
+
     return res.status(200).json(fp);
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Failed to set default floorplan" });
   }
 });
+
 
 module.exports = router;

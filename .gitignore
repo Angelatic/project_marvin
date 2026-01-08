@@ -5,12 +5,14 @@
 /.colcon_install_cache/
 /.colcon/
 
+
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.egg-info/
+node_modules/
 
 # Editors
 .vscode/

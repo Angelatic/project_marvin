@@ -62,7 +62,6 @@ function normalizeWarehouseTaskInput(payload) {
   }
 
   // --- Oude platte payload (backwards compatible) ---
-  // (handig voor simpele Postman tests of oudere SAP mapping)
   const ewmWarehouse = payload.EWMWarehouse;
   const warehouseOrder = payload.WarehouseOrder;
   const warehouseTask = payload.WarehouseTask ?? null;

@@ -64,6 +64,31 @@ async function getTaskWithLatestLog(client, marvinTaskId) {
   return res.rows[0] || null;
 }
 
+async function claimNextQueued(client, robotId) {
+  const { rows } = await client.query(
+    `
+    WITH next_task AS (
+      SELECT marvintaskid
+      FROM marvintask
+      WHERE status = 'QUEUED'
+      ORDER BY created_at ASC, marvintaskid ASC
+      FOR UPDATE SKIP LOCKED
+      LIMIT 1
+    )
+    UPDATE marvintask mt
+    SET robotid = $1,
+        status = 'ASSIGNED'
+    FROM next_task
+    WHERE mt.marvintaskid = next_task.marvintaskid
+    RETURNING mt.*;
+    `,
+    [robotId]
+  );
+
+  return rows[0] || null;
+}
+
+
 module.exports = {
   insert,
   updateStatus,
@@ -71,5 +96,6 @@ module.exports = {
   getById,
   listByStatus,
   listInTransientStates,
-  getTaskWithLatestLog
+  getTaskWithLatestLog,
+  claimNextQueued
 };

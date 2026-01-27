@@ -4,7 +4,7 @@ async function insertOrUpdate(client, fp) {
   // usePGM afleiden:
   // - als sourceType PGM is dan usePGM=true
   // - als sourceType JSON is dan usePGM=false
-  // - expliciet meegegeven usePGM wint
+  // - expliciet meegegeven usePGM
   const sourceType = String(fp.sourceType || "").toUpperCase();
   const usePgm =
     (fp.usePGM !== undefined && fp.usePGM !== null)
@@ -20,7 +20,7 @@ async function insertOrUpdate(client, fp) {
       fp.name,
       fp.version,
       fp.sourceType,
-      floorplanJson,      // pg driver kan JS object -> JSONB
+      floorplanJson,
       usePgm,
       fp.pgmPath || null,
       fp.yamlPath || null

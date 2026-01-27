@@ -19,17 +19,17 @@ async function pickRobot(client) {
   const robots = await robotModel.listAll(client);
   if (!robots.length) return null;
 
-  // Eenvoudige strategie: kies de eerste robot die recent status heeft gepublished
+  //kies de eerste robot die recent status heeft gepublished
   for (const r of robots) {
     const last = await robotLogModel.getLatestByRobot(client, r.robotid);
     if (isRobotFresh(last)) return r;
   }
 
-  // Fallback: kies eerste robot (demo-vriendelijk)
+  //kies eerste robot (demo)
   return robots[0];
 }
 
-async function assignAndSendOnce() {
+/*async function assignAndSendOnce() {
   // Zoek taken die klaarstaan
   const queued = await withTransaction(async (client) => {
     return marvinTaskModel.listByStatus(client, "QUEUED");
@@ -54,6 +54,30 @@ async function assignAndSendOnce() {
       // Send outside the assignment transaction is ok, sendToRobot has its own transaction
       await marvinTaskService.sendToRobot(didAssign.marvinTaskId);
     }
+  }
+}*/
+
+async function assignAndSendOnce() {
+  const t = await withTransaction(async (client) => {
+    return marvinTaskModel.getNextQueued(client);
+  });
+  if (!t) return;
+
+  const didAssign = await withTransaction(async (client) => {
+    const robot = await pickRobot(client);
+    if (!robot) return null;
+
+    const updated = await marvinTaskModel.assignRobot(client, t.marvintaskid, robot.robotid);
+    if (!updated) return null;
+
+    const taskLogService = require("./taskLogService");
+    await taskLogService.logStatus(client, t.marvintaskid, "ASSIGNED", null, null);
+
+    return { marvinTaskId: t.marvintaskid, robotId: robot.robotid };
+  });
+
+  if (didAssign) {
+    await marvinTaskService.sendToRobot(didAssign.marvinTaskId);
   }
 }
 

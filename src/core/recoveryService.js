@@ -10,7 +10,7 @@ async function runStartupRecovery() {
 
     const transient = await marvinTaskModel.listInTransientStates(client);
 
-    // Demo-veilig: alles wat SENT/RUNNING was wordt weer QUEUED
+    // alles wat SENT/RUNNING was wordt weer QUEUED
     for (const t of transient) {
       await marvinTaskModel.updateStatus(client, t.marvintaskid, "QUEUED");
       await taskLogService.logStatus(client, t.marvintaskid, "RECOVERED", null, null);

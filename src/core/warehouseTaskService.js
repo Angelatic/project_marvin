@@ -8,13 +8,13 @@ async function createFromSapJson(originalPayload) {
   return withTransaction(async (client) => {
     const normalized = normalizeWarehouseTaskInput(originalPayload);
 
-    // 1) WarehouseTask opslaan (kolommen uit normalized, rawtext = originele payload)
+    // WarehouseTask opslaan (kolommen uit normalized, rawtext = originele payload)
     const wt = await warehouseTaskModel.insertFromNormalized(client, normalized, originalPayload);
 
-    // 2) MarvinTask opbouwen + TaskLog (ongewijzigd)
+    // MarvinTask opbouwen + TaskLog (ongewijzigd)
     const mt = await marvinTaskService.createFromWarehouseTask(client, wt);
 
-    // 3) Response richting SAP
+    // Response richting SAP
     return {
       wtid: wt.wtid,
       marvinTaskId: mt.marvinTaskId,

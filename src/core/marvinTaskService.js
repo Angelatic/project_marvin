@@ -80,7 +80,6 @@ async function sendToRobot(marvinTaskId) {
       floorplanId: fp.floorplanid,
       source: { binName: source.binname, x: Number(source.locationx), y: Number(source.locationy) },
       destination: { binName: dest.binname, x: Number(dest.locationx), y: Number(dest.locationy) }
-      // waypoints komt later, maar start/goal is nu al bruikbaar
     };
 
     publishNewTask(payload);

@@ -7,7 +7,12 @@ function validateWarehouseTaskJson(payload) {
 
     if (!isNonEmptyString(n.ewmWarehouse)) return "EWMWarehouse is required";
     if (!isNonEmptyString(n.warehouseOrder)) return "WarehouseOrder is required";
-    if (!isNonEmptyString(n.sourceBin)) return "sourceBin/SourceStorageBin is required";
+    // sourceBin is optional in the new robot flow:
+    // - if omitted/null/empty -> robot uses default start pose (0.5, 0.5)
+    // - if provided -> must be a non-empty string
+    if (n.sourceBin !== null && n.sourceBin !== undefined && String(n.sourceBin).trim() !== "") {
+      if (!isNonEmptyString(n.sourceBin)) return "sourceBin/SourceStorageBin must be a non-empty string if provided";
+    }
     if (!isNonEmptyString(n.destBin)) return "destBin/DestinationStorageBin is required";
 
     // WarehouseTask en WarehouseTaskItem zijn bij jou functioneel handig,

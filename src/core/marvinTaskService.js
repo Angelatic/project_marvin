@@ -7,7 +7,9 @@ const { withTransaction } = require("../infra/db");
 const { publishNewTask } = require("../mqtt/newTaskPublisher");
 
 function initialStatus(sourceBinInfo, destBinInfo) {
-  return (sourceBinInfo && destBinInfo) ? "QUEUED" : "BININFO_MISSING";
+  // Destination is required to navigate. Source is optional (bridge uses default start when null).
+  if (!destBinInfo) return "BININFO_MISSING";
+  return "QUEUED";
 }
 
 // Flow 3
@@ -58,13 +60,16 @@ async function sendToRobot(marvinTaskId) {
       await taskLogService.logStatus(client, marvinTaskId, "NO_ROBOT_ASSIGNED", null, null);
       return null;
     }
-    if (!task.sourcebininfoid || !task.destbininfoid) {
+    if (!task.destbininfoid) {
+      // Destination is required. Source may be null: bridge will use default start (0.5, 0.5).
       await marvinTaskModel.updateStatus(client, marvinTaskId, "BININFO_MISSING");
       await taskLogService.logStatus(client, marvinTaskId, "BININFO_MISSING", null, null);
       return null;
     }
 
-    const source = await client.query(`SELECT * FROM bininfo WHERE bininfoid = $1`, [task.sourcebininfoid]).then(r => r.rows[0] || null);
+    const source = task.sourcebininfoid
+      ? await client.query(`SELECT * FROM bininfo WHERE bininfoid = $1`, [task.sourcebininfoid]).then(r => r.rows[0] || null)
+      : null;
     const dest = await client.query(`SELECT * FROM bininfo WHERE bininfoid = $1`, [task.destbininfoid]).then(r => r.rows[0] || null);
 
     const fp = await floorplanModel.getDefault(client);
@@ -78,7 +83,7 @@ async function sendToRobot(marvinTaskId) {
       marvinTaskId,
       robotId: task.robotid,
       floorplanId: fp.floorplanid,
-      source: { binName: source.binname, x: Number(source.locationx), y: Number(source.locationy) },
+      source: source ? { binName: source.binname, x: Number(source.locationx), y: Number(source.locationy) } : null,
       destination: { binName: dest.binname, x: Number(dest.locationx), y: Number(dest.locationy) }
     };
 

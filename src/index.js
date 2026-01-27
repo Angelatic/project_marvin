@@ -8,6 +8,7 @@ const binInfoRoutes = require("./api/binInfoRoutes");
 const floorplanRoutes = require("./api/floorplanRoutes");
 const statusRoutes = require("./api/statusRoutes");
 const healthRoutes = require("./api/healthRoutes");
+const pointRoutes = require("./api/pointRoutes");
 
 const mqttClient = require("./infra/mqttClient");
 const registerMqttHandlers = require("./mqtt/mqttRouter");
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use("/task", taskRoutes);
 app.use("/bininfo", binInfoRoutes);
 app.use("/floorplan", floorplanRoutes);
+app.use("/point", pointRoutes);
 app.use("/status", statusRoutes);
 app.use("/health", healthRoutes);
 

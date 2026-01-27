@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
-const { publishFloorplanUpdate } = require("../mqtt/floorplanPublisher");
+// NOTE: Linux is case-sensitive; file is named FloorplanPublisher.js
+const { publishFloorplanUpdate } = require("../mqtt/FloorplanPublisher");
 
 const floorplanService = require("../core/floorplanService");
 const { validateFloorplanJson } = require("../util/validation");
@@ -13,6 +14,21 @@ router.post("/", async (req, res) => {
 
   try {
     const fp = await floorplanService.createOrUpdate(req.body);
+
+    // Also publish immediately so the robot/planner can update without an extra call.
+    // Map DB/HTTP shape → bridge shape: { usePGM: bool, floorplan: object|null }
+    const sourceType = String(fp.sourcetype || req.body.sourceType || "").toUpperCase();
+    const usePGM = (fp.usepgm !== undefined && fp.usepgm !== null)
+      ? !!fp.usepgm
+      : (sourceType === "JSON" ? false : true);
+
+    const floorplanObj = fp.floorplanjson || req.body.floorplanJson || req.body.floorplan || null;
+    const payload = usePGM
+      ? { usePGM: true, floorplan: null }
+      : { usePGM: false, floorplan: floorplanObj };
+
+    publishFloorplanUpdate(payload);
+
     return res.status(201).json(fp);
   } catch (e) {
     console.error(e);

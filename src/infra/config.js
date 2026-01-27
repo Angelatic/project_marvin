@@ -9,6 +9,9 @@ const config = {
   MQTT_TOPIC_TASK_STATUS: process.env.MQTT_TOPIC_TASK_STATUS,
   MQTT_TOPIC_NEW_TASK: process.env.MQTT_TOPIC_NEW_TASK,
 
+  // Route planner request topic (HTTP /task → MQTT marvin/nav/plan)
+  MQTT_TOPIC_NAV_PLAN: process.env.MQTT_TOPIC_NAV_PLAN,
+
   MQTT_TOPIC_FLOORPLAN_UPDATE: process.env.MQTT_TOPIC_FLOORPLAN_UPDATE,
 
   ASSIGNMENT_INTERVAL_MS: Number(process.env.ASSIGNMENT_INTERVAL_MS),
